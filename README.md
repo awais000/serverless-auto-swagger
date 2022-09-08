@@ -5,20 +5,20 @@ This plugin allows you to automatically generate a swagger endpoint, describing 
 ## Install
 
 ```sh
-yarn add --dev serverless-auto-swagger
+yarn add --dev serverless-auto-swagger2.0
 # or
-npm install -D serverless-auto-swagger
+npm install -D serverless-auto-swagger2.0
 ```
 
 Add the following plugin to your `serverless.yml` or `serverless.ts`:
 
 ```yaml
 plugins:
-  - serverless-auto-swagger
+  - serverless-auto-swagger2.0
 ```
 
 ```ts
-plugins: ['serverless-auto-swagger'];
+plugins: ['serverless-auto-swagger2.0'];
 ```
 
 **_NOTE_**: This plugin _must_ come before any transform plugins (i.e. `serverless-webpack` or `serverless-plugin-typescript`), and _must_ come before `serverless-offline` if included.
