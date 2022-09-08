@@ -25,7 +25,6 @@
   "dependencies": {
     "@serverless/typescript": "^3.3.0",
     "fs-extra": "^10.0.0",
-    "typeconv": "^1.4.1",
     "typescript-json-schema": "^0.54.0"
   },
   "devDependencies": {
