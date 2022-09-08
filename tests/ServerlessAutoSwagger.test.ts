@@ -988,4 +988,131 @@ describe('ServerlessAutoSwagger', () => {
       });
     });
   });
+
+  describe('gatherTypes', () => {
+    it('should generate complex typing corrent ', () => {
+      const serverlessAutoSwagger = new ServerlessAutoSwagger(
+        generateServerlessFromAnEndpoint([], { typefiles: ['src/types/test/api-types.ts'] }),
+        options,
+        logging
+      );
+
+      serverlessAutoSwagger.gatherTypes();
+      expect(serverlessAutoSwagger.swagger.definitions).toEqual({
+        ObjectType: {
+          $ref: '#/definitions/__object',
+        },
+        Foo: {
+          type: 'object',
+          properties: {
+            x: {
+              type: 'number',
+              title: 'x',
+            },
+            y: {
+              type: 'number',
+              title: 'y',
+            },
+            extra: {
+              $ref: '#/definitions/ObjectType',
+              title: 'extra',
+            },
+          },
+          required: ['extra', 'x', 'y'],
+        },
+        Bar: {
+          type: 'object',
+          properties: {
+            a: {
+              type: 'number',
+              title: 'a',
+            },
+            b: {
+              type: 'number',
+              title: 'b',
+            },
+          },
+          required: ['a', 'b'],
+        },
+        MyObject: {
+          type: 'object',
+          properties: {
+            foo: {
+              $ref: '#/definitions/Partial',
+              title: 'foo',
+            },
+            bar: {
+              $ref: '#/definitions/Pick',
+              title: 'bar',
+            },
+          },
+          required: ['bar', 'foo'],
+        },
+        __object: {
+          title: '__object',
+          type: 'object',
+          properties: {
+            x: {
+              type: 'string',
+              enum: ['x'],
+              title: 'x',
+              default: 'x',
+            },
+            y: {
+              type: 'string',
+              enum: ['y'],
+              title: 'y',
+              default: 'y',
+            },
+            z: {
+              type: 'string',
+              enum: ['z'],
+              title: 'z',
+              default: 'z',
+            },
+          },
+          required: ['x', 'y', 'z'],
+        },
+        __type: {
+          title: '__type',
+          type: 'object',
+          properties: {
+            x: {
+              type: 'number',
+              title: 'x',
+            },
+            y: {
+              type: 'number',
+              title: 'y',
+            },
+            extra: {
+              $ref: '#/definitions/ObjectType_1',
+              title: 'extra',
+            },
+          },
+        },
+        ObjectType_1: {
+          title: 'ObjectType_1',
+          $ref: '#/definitions/__object',
+        },
+        Partial: {
+          $ref: '#/definitions/__type',
+        },
+        __type_1: {
+          title: '__type_1',
+          type: 'object',
+          properties: {
+            a: {
+              type: 'number',
+              title: 'a',
+            },
+          },
+          required: ['a'],
+        },
+        Pick: {
+          $ref: '#/definitions/__type_1',
+        },
+      });
+    });
+  });
 });

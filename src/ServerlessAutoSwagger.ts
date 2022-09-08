@@ -4,11 +4,11 @@ import { dirname } from 'path';
 import type { Options } from 'serverless';
 import type { Service } from 'serverless/aws';
 import type { Logging } from 'serverless/classes/Plugin';
-import { getOpenApiWriter, getTypeScriptReader, makeConverter } from 'typeconv';
 import { removeStringFromArray, writeFile } from './helperFunctions';
 import swaggerFunctions from './resources/functions';
 import * as customPropertiesSchema from './schemas/custom-properties.schema.json';
 import * as functionEventPropertiesSchema from './schemas/function-event-properties.schema.json';
+import * as TJS from 'typescript-json-schema';
 import type { HttpMethod } from './types/common.types';
 import type {
   CustomHttpApiEvent,
@@ -22,7 +22,7 @@ import type {
   ServerlessCommand,
   ServerlessHooks,
 } from './types/serverless-plugin.types';
-
+import { resolve } from 'path';
 import type {
   Definition,
   MethodSecurity,
@@ -32,6 +32,17 @@ import type {
   Swagger,
 } from './types/swagger.types';
 
+// optionally pass argument to schema generator
+const settings: TJS.PartialArgs = {
+  required: true,
+  aliasRef: true,
+  titles: true,
+};
+
+// optionally pass ts compiler options
+const compilerOptions: TJS.CompilerOptions = {
+  strictNullChecks: true,
+};
 export default class ServerlessAutoSwagger {
   serverless: CustomServerless;
   options: Options;
@@ -131,47 +142,39 @@ export default class ServerlessAutoSwagger {
     });
   };
 
+  addSwaggerDefinition = (definitions: Record<string, Definition>) => {
+    //TODO check if valid definitions
+    this.swagger.definitions = {
+      ...this.swagger.definitions,
+      ...definitions,
+    };
+  };
   gatherTypes = async () => {
     // get the details from the package.json? for info
     const service: string | Service = this.serverless.service.service;
     if (typeof service === 'string') this.swagger.info.title = service;
     else this.swagger.info.title = service.name;
 
-    const reader = getTypeScriptReader();
-    const writer = getOpenApiWriter({
-      format: 'json',
-      title: this.swagger.info.title,
-      version: 'v1',
-      schemaVersion: '2.0',
-    });
-    const { convert } = makeConverter(reader, writer);
     try {
       const typeLocationOverride = this.serverless.service.custom?.autoswagger?.typefiles;
 
       const typesFile = typeLocationOverride || ['./src/types/api-types.d.ts'];
-      await Promise.all(
-        typesFile.map(async (filepath) => {
-          try {
-            const fileData = readFileSync(filepath, 'utf8');
 
-            const { data } = await convert({ data: fileData });
-            // change the #/components/schema to #/definitions
-            const definitionsData = data.replace(/\/components\/schemas/g, '/definitions');
+      try {
+        const program = TJS.getProgramFromFiles(
+          typesFile.map((filepath) => resolve(filepath)),
+          compilerOptions
+        );
 
-            const definitions: Record<string, Definition> = JSON.parse(definitionsData).components.schemas;
+        // We can either get the schema for one file and one type...
+        const schema = TJS.generateSchema(program, '*', settings);
 
-            // TODO: Handle `anyOf` in swagger configs
+        this.addSwaggerDefinition(schema?.definitions as unknown as Record<string, Definition>);
+      } catch (error) {
+        this.log.error(`Couldn't read types from file: ${typesFile}`);
+        return;
+      }
 
-            this.swagger.definitions = {
-              ...this.swagger.definitions,
-              ...definitions,
-            };
-          } catch (error) {
-            this.log.error(`Couldn't read types from file: ${filepath}`);
-            return;
-          }
-        })
-      );
       // TODO change this to store these as temporary and only include definitions used elsewhere.
     } catch (error) {
       this.log.error(`Unable to get types: ${error}`);
@@ -303,7 +306,14 @@ export default class ServerlessAutoSwagger {
       }
       const response: Response = { description: responseDetails.description || `${statusCode} response` };
       if (responseDetails.bodyType) {
-        response.schema = { $ref: `#/definitions/${responseDetails.bodyType}` };
+        //TODO check if valid definitions
+        let definationRefName = responseDetails.bodyType;
+        if (typeof responseDetails.bodyType === 'object' && !Array.isArray(responseDetails.bodyType)) {
+          //TODO check if title exist if not add random id
+          definationRefName = responseDetails.bodyType.title!;
+          this.addSwaggerDefinition(responseDetails.bodyType as unknown as Record<string, Definition>);
+        }
+        response.schema = { $ref: `#/definitions/${definationRefName}` };
       }
 
       formatted[statusCode] = response;
@@ -336,12 +346,19 @@ export default class ServerlessAutoSwagger {
     const parameters: Parameter[] = [];
 
     if (httpEvent.bodyType) {
+      let definationRefName = httpEvent.bodyType;
+
+      if (typeof httpEvent.bodyType === 'object' && !Array.isArray(httpEvent.bodyType)) {
+        definationRefName = httpEvent.bodyType.title!;
+
+        this.addSwaggerDefinition(httpEvent.bodyType as unknown as Record<string, Definition>);
+      }
       parameters.push({
         in: 'body',
         name: 'body',
         description: 'Body required in the request',
         required: true,
-        schema: { $ref: `#/definitions/${httpEvent.bodyType}` },
+        schema: { $ref: `#/definitions/${definationRefName}` },
       });
     }
 

@@ -11,6 +11,7 @@ import type {
   Provider,
   Serverless,
 } from 'serverless/aws';
+import { Definition } from 'typescript-json-schema';
 import type { HttpMethod } from './common.types';
 
 export type CustomServerless = {
@@ -104,7 +105,7 @@ export interface CustomHttpEvent extends Http {
   responseData?: HttpResponses;
   responses?: HttpResponses; // Ideally don't use as it conflicts with serverless offline
   exclude?: boolean;
-  bodyType?: string;
+  bodyType?: string|Definition;
   headerParameters?: HeaderParameters;
   queryStringParameters?: QueryStringParameters;
 }
@@ -129,7 +130,7 @@ export interface HttpResponses {
     | string
     | {
         description?: string;
-        bodyType?: string;
+        bodyType?: string | Definition;
       };
 }
 
