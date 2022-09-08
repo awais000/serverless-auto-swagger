@@ -1,5 +1,5 @@
 {
-  "name": "serverless-auto-swagger",
+  "name": "serverless-auto-swagger2.0",
   "version": "2.8.2",
   "description": "Automatically generate a swagger file from your Serverless Framework config file",
   "main": "dist/index.js",
